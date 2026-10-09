@@ -115,10 +115,10 @@ class ApiIntegrationTests {
         mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("10:00")))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("waiting"));
         mvc.perform(get("/api/slots").param("date", date())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.slots[0].available").value(false)).andExpect(jsonPath("$.slots[0].phone").doesNotExist());
+            .andExpect(jsonPath("$.slots[2].available").value(false)).andExpect(jsonPath("$.slots[2].phone").doesNotExist());
         mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("10:00")))
             .andExpect(status().isConflict());
-        mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("09:00")))
+        mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("08:30")))
             .andExpect(status().isBadRequest());
         mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("10:30").replace("0812345678", "123")))
             .andExpect(status().isBadRequest());
@@ -137,7 +137,19 @@ class ApiIntegrationTests {
             .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("done"));
         mvc.perform(delete("/api/bookings/" + id).session(session).with(csrf())).andExpect(status().isNoContent());
         mvc.perform(delete("/api/bookings/" + id).session(session).with(csrf())).andExpect(status().isNotFound());
-        mvc.perform(get("/api/slots").param("date", date())).andExpect(jsonPath("$.slots[0].available").value(true));
+        mvc.perform(get("/api/slots").param("date", date())).andExpect(jsonPath("$.slots[2].available").value(true));
+    }
+    @Test void newOpeningAndClosingSlotsAreAcceptedByTheDatabase() throws Exception {
+        mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("09:00")))
+            .andExpect(status().isCreated());
+        mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("18:00")))
+            .andExpect(status().isCreated());
+        mvc.perform(get("/api/slots").param("date", date())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.slots.length()").value(19))
+            .andExpect(jsonPath("$.slots[0].time").value("09:00"))
+            .andExpect(jsonPath("$.slots[18].time").value("18:00"))
+            .andExpect(jsonPath("$.slots[0].booked").value(true))
+            .andExpect(jsonPath("$.serverNow").exists());
     }
     @Test void differentDaysAndPastDate() throws Exception {
         mvc.perform(post("/api/bookings").with(csrf()).contentType("application/json").content(booking("10:00"))).andExpect(status().isCreated());
